@@ -36,17 +36,21 @@ Scripts/compile_and_run.sh
 which renders the mark with Core Graphics at every size an `.iconset` needs. It
 also writes `Readout-mark.png`, the bare mark at 1024 on transparency.
 
-The mark is drawn on its own, with no plate behind it. macOS puts no container
-around a classic `.icns` — whatever the file holds is what gets drawn — so a
-plate would have to be painted in to exist at all. Leaving it out is what lets
-something else supply the container: drop `Readout-mark.png` into Icon Composer
-and macOS 26 draws the rounded square and its material itself.
+The mark is drawn on its own, with no plate behind it, because macOS 26 draws
+the container itself: it composes a rounded square behind a legacy `.icns`
+rather than rendering the file's contents bare. Confirmed with
+`NSWorkspace.icon(forFile:)`, which is what Finder and the Dock draw — see
+`Scripts/` history if you want to re-run the check.
 
-Two consequences. The mark is coloured for a light container, and carries a
-faint light rim on the needle so it still reads if it ends up on a dark ground
-with nothing behind it. And the needle is drawn heavier and shorter than looks
-right at full size, because at 16 points the dial is about ten pixels across and
-a slender needle renders as a smudge.
+That container came back dark under both the light and the dark system
+appearance, so the mark is coloured for a dark ground: a white needle over a
+light track. The needle is also drawn heavier and shorter than looks right at
+full size, because at 16 points the dial is about ten pixels across and a
+slender one renders as a smudge.
+
+`Readout-mark.png` is the same mark at 1024 on transparency, for Icon Composer
+if you ever want to author the container deliberately instead of taking the
+system's.
 
 That builds the Rust core, builds the app, assembles `Readout.app`, signs it
 ad hoc and launches it. `Scripts/package_app.sh release` stops after packaging.
