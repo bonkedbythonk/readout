@@ -6,7 +6,7 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 ICONSET=$(mktemp -d)/Readout.iconset
 mkdir -p "$ICONSET"
 
-swift "$ROOT/Scripts/make_icon.swift" "$ICONSET"
+swift "$ROOT/Scripts/make_icon.swift" "$ICONSET" "$ROOT/Readout-mark.png"
 iconutil --convert icns --output "$ROOT/Icon.icns" "$ICONSET"
 rm -rf "$(dirname "$ICONSET")"
-echo "Created $ROOT/Icon.icns"
+echo "Created $ROOT/Icon.icns and $ROOT/Readout-mark.png"

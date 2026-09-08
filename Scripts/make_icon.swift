@@ -1,8 +1,17 @@
-// Draws Readout's app icon and writes Icon.icns.
+// Draws Readout's app icon: a gauge dial with a needle just past half, the
+// same mark that sits in the menu bar. Generated rather than hand-drawn so the
+// two stay in step. Run through Scripts/make_icon.sh.
 //
-// Generated rather than hand-drawn so the mark stays in step with the one in
-// the menu bar: a gauge dial with a needle just past half. Run through
-// Scripts/make_icon.sh.
+// The mark is drawn on its own, with no plate behind it. macOS does not put a
+// container around a classic .icns — whatever the file holds is what gets
+// drawn — so the plate would have to be painted here to exist at all. Drawing
+// the glyph alone is what lets the system supply the container instead, which
+// is what Icon Composer does on macOS 26 with the transparent PNG this also
+// writes.
+//
+// Consequence worth knowing: the mark is coloured for a light container. On a
+// dark background the needle loses contrast, because nothing here paints a
+// ground for it to sit on.
 
 import CoreGraphics
 import Foundation
@@ -11,8 +20,9 @@ import UniformTypeIdentifiers
 
 // MARK: - Geometry
 
-/// Apple's icon grid: on a 1024 canvas the rounded square is 824 wide, centred,
-/// leaving room for the shadow the system expects to sit under it.
+/// Apple's icon grid: on a 1024 canvas the container occupies 824, centred.
+/// The mark is laid out against that square even though it is not drawn, so it
+/// lands where a container would put it.
 let canvas: CGFloat = 1024
 let plateInset: CGFloat = 100
 let plateSize = canvas - plateInset * 2
@@ -55,65 +65,15 @@ func drawIcon(in context: CGContext) {
     context.interpolationQuality = .high
 
     let plate = CGRect(x: plateInset, y: plateInset, width: plateSize, height: plateSize)
-    let platePath = squircle(in: plate)
-
-    // The shadow sits under the plate, the way the system draws its own icons.
-    context.saveGState()
-    context.setShadow(
-        offset: CGSize(width: 0, height: -canvas * 0.018),
-        blur: canvas * 0.038,
-        color: rgb(0, 0, 0, 0.32)
-    )
-    context.addPath(platePath)
-    context.setFillColor(rgb(20, 26, 38))
-    context.fillPath()
-    context.restoreGState()
-
-    context.saveGState()
-    context.addPath(platePath)
-    context.clip()
-
-    // Graphite ground, so the dial reads as an instrument face rather than a
-    // coloured tile, with the accent kept for the needle.
-    let ground = CGGradient(
-        colorsSpace: space,
-        colors: [rgb(58, 66, 84), rgb(24, 29, 41)] as CFArray,
-        locations: [0, 1]
-    )!
-    context.drawLinearGradient(
-        ground,
-        start: CGPoint(x: plate.midX, y: plate.maxY),
-        end: CGPoint(x: plate.midX, y: plate.minY),
-        options: []
-    )
-
-    // A soft highlight across the top third, the light every macOS icon has.
-    let sheen = CGGradient(
-        colorsSpace: space,
-        colors: [rgb(255, 255, 255, 0.16), rgb(255, 255, 255, 0)] as CFArray,
-        locations: [0, 1]
-    )!
-    context.drawLinearGradient(
-        sheen,
-        start: CGPoint(x: plate.midX, y: plate.maxY),
-        end: CGPoint(x: plate.midX, y: plate.midY + plate.height * 0.05),
-        options: []
-    )
-
     drawDial(in: context, plate: plate)
-    context.restoreGState()
-
-    // Hairline rim, which keeps the plate's edge crisp on a light desktop.
-    context.addPath(platePath)
-    context.setStrokeColor(rgb(255, 255, 255, 0.14))
-    context.setLineWidth(canvas * 0.004)
-    context.strokePath()
 }
 
 func drawDial(in context: CGContext, plate: CGRect) {
-    let centre = CGPoint(x: plate.midX, y: plate.midY - plate.height * 0.085)
-    let radius = plate.width * 0.315
-    let track = plate.width * 0.085
+    // Larger than it was inside a plate: with no frame around it the mark has
+    // to hold the icon's square on its own.
+    let centre = CGPoint(x: plate.midX, y: plate.midY - plate.height * 0.075)
+    let radius = plate.width * 0.375
+    let track = plate.width * 0.105
 
     // The dial sweeps 240°, the span an instrument uses: from lower left round
     // through the top to lower right.
@@ -123,7 +83,9 @@ func drawDial(in context: CGContext, plate: CGRect) {
     // Unfilled track.
     context.setLineCap(.round)
     context.setLineWidth(track)
-    context.setStrokeColor(rgb(255, 255, 255, 0.24))
+    // Solid, not a white wash: with no plate behind it a translucent track
+    // would disappear into whatever the container is made of.
+    context.setStrokeColor(rgb(198, 205, 218))
     context.addArc(center: centre, radius: radius, startAngle: start, endAngle: end, clockwise: true)
     context.strokePath()
 
@@ -167,18 +129,34 @@ func drawDial(in context: CGContext, plate: CGRect) {
     needle.addLine(to: CGPoint(x: centre.x - offset.x, y: centre.y - offset.y))
     needle.closeSubpath()
 
+    // A faint light rim around the needle. With no plate behind the mark, a
+    // dark needle on a dark ground all but vanishes; the rim costs nothing on
+    // a light container and separates it on a dark one.
     context.addPath(needle)
-    context.setFillColor(rgb(255, 255, 255))
+    context.setStrokeColor(rgb(255, 255, 255, 0.55))
+    context.setLineWidth(plate.width * 0.012)
+    context.setLineJoin(.round)
+    context.strokePath()
+
+    context.addPath(needle)
+    context.setFillColor(rgb(38, 45, 60))
     context.fillPath()
 
     // Hub.
-    let hub = plate.width * 0.052
-    context.setFillColor(rgb(255, 255, 255))
+    let hub = plate.width * 0.062
+    context.setFillColor(rgb(255, 255, 255, 0.55))
+    context.fillEllipse(in: CGRect(
+        x: centre.x - hub / 2 - plate.width * 0.006,
+        y: centre.y - hub / 2 - plate.width * 0.006,
+        width: hub + plate.width * 0.012,
+        height: hub + plate.width * 0.012
+    ))
+    context.setFillColor(rgb(38, 45, 60))
     context.fillEllipse(in: CGRect(
         x: centre.x - hub / 2, y: centre.y - hub / 2, width: hub, height: hub
     ))
-    let core = hub * 0.42
-    context.setFillColor(rgb(30, 36, 48))
+    let core = hub * 0.40
+    context.setFillColor(rgb(255, 255, 255))
     context.fillEllipse(in: CGRect(
         x: centre.x - core / 2, y: centre.y - core / 2, width: core, height: core
     ))
@@ -226,4 +204,12 @@ let variants: [(name: String, pixels: Int)] = [
 for variant in variants {
     write(render(size: variant.pixels), to: outputDirectory.appendingPathComponent("\(variant.name).png"))
 }
+
+// Icon Composer takes the mark on its own and draws the container itself.
+if CommandLine.arguments.count > 2 {
+    let glyph = URL(fileURLWithPath: CommandLine.arguments[2])
+    write(render(size: 1024), to: glyph)
+    print("wrote mark to \(glyph.path)")
+}
+
 print("wrote \(variants.count) sizes to \(outputDirectory.path)")
