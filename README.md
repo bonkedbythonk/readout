@@ -33,9 +33,20 @@ Scripts/compile_and_run.sh
 ```
 
 `Scripts/make_icon.sh` redraws `Icon.icns` from `Scripts/make_icon.swift`,
-which renders the mark with Core Graphics at every size an `.iconset` needs. The
-needle is drawn heavier than it would be at full size because at 16 points a
-slender one disappears and the dial stops reading as an instrument.
+which renders the mark with Core Graphics at every size an `.iconset` needs. It
+also writes `Readout-mark.png`, the bare mark at 1024 on transparency.
+
+The mark is drawn on its own, with no plate behind it. macOS puts no container
+around a classic `.icns` — whatever the file holds is what gets drawn — so a
+plate would have to be painted in to exist at all. Leaving it out is what lets
+something else supply the container: drop `Readout-mark.png` into Icon Composer
+and macOS 26 draws the rounded square and its material itself.
+
+Two consequences. The mark is coloured for a light container, and carries a
+faint light rim on the needle so it still reads if it ends up on a dark ground
+with nothing behind it. And the needle is drawn heavier and shorter than looks
+right at full size, because at 16 points the dial is about ten pixels across and
+a slender needle renders as a smudge.
 
 That builds the Rust core, builds the app, assembles `Readout.app`, signs it
 ad hoc and launches it. `Scripts/package_app.sh release` stops after packaging.
