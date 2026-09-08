@@ -23,7 +23,7 @@ Sources/Readout/        the app
   Sensors/             IOKit: thermals, SMC, GPU, battery
   Model/               sampling actor, observable model, formatting
   Views/               panel, details window, cards
-Scripts/               build, package, run
+Scripts/               build, package, run, draw the icon
 ```
 
 ## Build and run
@@ -31,6 +31,11 @@ Scripts/               build, package, run
 ```bash
 Scripts/compile_and_run.sh
 ```
+
+`Scripts/make_icon.sh` redraws `Icon.icns` from `Scripts/make_icon.swift`,
+which renders the mark with Core Graphics at every size an `.iconset` needs. The
+needle is drawn heavier than it would be at full size because at 16 points a
+slender one disappears and the dial stops reading as an instrument.
 
 That builds the Rust core, builds the app, assembles `Readout.app`, signs it
 ad hoc and launches it. `Scripts/package_app.sh release` stops after packaging.

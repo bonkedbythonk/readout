@@ -40,6 +40,10 @@ ICON_SOURCE="$ROOT/Icon.icon"
 ICON_TARGET="$ROOT/Icon.icns"
 if [[ -f "$ICON_SOURCE" ]]; then
   iconutil --convert icns --output "$ICON_TARGET" "$ICON_SOURCE"
+elif [[ ! -f "$ICON_TARGET" && -x "$ROOT/Scripts/make_icon.sh" ]]; then
+  # The icon is drawn from source and not checked in, so a fresh clone would
+  # otherwise package an app with no icon at all.
+  "$ROOT/Scripts/make_icon.sh"
 fi
 
 LSUI_VALUE="false"
