@@ -2,16 +2,14 @@
 // same mark that sits in the menu bar. Generated rather than hand-drawn so the
 // two stay in step. Run through Scripts/make_icon.sh.
 //
-// The mark is drawn on its own, with no plate behind it. macOS does not put a
-// container around a classic .icns — whatever the file holds is what gets
-// drawn — so the plate would have to be painted here to exist at all. Drawing
-// the glyph alone is what lets the system supply the container instead, which
-// is what Icon Composer does on macOS 26 with the transparent PNG this also
-// writes.
+// The mark is drawn on its own, with no plate behind it, because macOS 26
+// supplies the container itself: it composes a rounded square behind a legacy
+// .icns rather than drawing the file's contents bare. Checked with
+// NSWorkspace.icon(forFile:), which is what Finder and the Dock draw.
 //
-// Consequence worth knowing: the mark is coloured for a light container. On a
-// dark background the needle loses contrast, because nothing here paints a
-// ground for it to sit on.
+// That container came back dark under both the light and dark system
+// appearances, so the mark is coloured for a dark ground: a white needle, and
+// a light track that holds its own against the blue.
 
 import CoreGraphics
 import Foundation
@@ -83,8 +81,8 @@ func drawDial(in context: CGContext, plate: CGRect) {
     // Unfilled track.
     context.setLineCap(.round)
     context.setLineWidth(track)
-    // Solid, not a white wash: with no plate behind it a translucent track
-    // would disappear into whatever the container is made of.
+    // Solid rather than a translucent wash, so the unfilled part of the dial
+    // stays legible against the container the system draws.
     context.setStrokeColor(rgb(198, 205, 218))
     context.addArc(center: centre, radius: radius, startAngle: start, endAngle: end, clockwise: true)
     context.strokePath()
@@ -129,34 +127,18 @@ func drawDial(in context: CGContext, plate: CGRect) {
     needle.addLine(to: CGPoint(x: centre.x - offset.x, y: centre.y - offset.y))
     needle.closeSubpath()
 
-    // A faint light rim around the needle. With no plate behind the mark, a
-    // dark needle on a dark ground all but vanishes; the rim costs nothing on
-    // a light container and separates it on a dark one.
     context.addPath(needle)
-    context.setStrokeColor(rgb(255, 255, 255, 0.55))
-    context.setLineWidth(plate.width * 0.012)
-    context.setLineJoin(.round)
-    context.strokePath()
-
-    context.addPath(needle)
-    context.setFillColor(rgb(38, 45, 60))
+    context.setFillColor(rgb(255, 255, 255))
     context.fillPath()
 
     // Hub.
     let hub = plate.width * 0.062
-    context.setFillColor(rgb(255, 255, 255, 0.55))
-    context.fillEllipse(in: CGRect(
-        x: centre.x - hub / 2 - plate.width * 0.006,
-        y: centre.y - hub / 2 - plate.width * 0.006,
-        width: hub + plate.width * 0.012,
-        height: hub + plate.width * 0.012
-    ))
-    context.setFillColor(rgb(38, 45, 60))
+    context.setFillColor(rgb(255, 255, 255))
     context.fillEllipse(in: CGRect(
         x: centre.x - hub / 2, y: centre.y - hub / 2, width: hub, height: hub
     ))
     let core = hub * 0.40
-    context.setFillColor(rgb(255, 255, 255))
+    context.setFillColor(rgb(38, 45, 60))
     context.fillEllipse(in: CGRect(
         x: centre.x - core / 2, y: centre.y - core / 2, width: core, height: core
     ))
