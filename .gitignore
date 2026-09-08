@@ -1,0 +1,13 @@
+# SwiftPM
+.build/
+
+# Rust
+core/target/
+
+# Packaged app bundle, rebuilt by Scripts/package_app.sh
+Readout.app/
+
+# Generated icon
+Icon.icns
+
+.DS_Store
