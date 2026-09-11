@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct ReadoutApp: App {
     @State private var model = ReadoutModel()
+    @State private var updates = UpdateChecker()
 
     init() {
         Benchmark.runIfRequested()
@@ -13,7 +14,7 @@ struct ReadoutApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            PanelView(model: model)
+            PanelView(model: model, updates: updates)
         } label: {
             // Just the mark. Readings belong in the panel, not crowded into
             // the menu bar beside the system's own items.

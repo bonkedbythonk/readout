@@ -7,6 +7,7 @@ import SwiftUI
 /// battery cycles, per-core load, every volume — lives in the details window.
 struct PanelView: View {
     @Bindable var model: ReadoutModel
+    @Bindable var updates: UpdateChecker
     @Environment(\.openWindow) private var openWindow
 
     /// Local, not observed state: the geometry reader below writes this from
@@ -17,8 +18,9 @@ struct PanelView: View {
 
     @State private var launchAtLoginError: String?
 
-    init(model: ReadoutModel) {
+    init(model: ReadoutModel, updates: UpdateChecker) {
         self.model = model
+        self.updates = updates
         _contentHeight = State(initialValue: model.panelContentHeight)
     }
 
@@ -82,11 +84,19 @@ struct PanelView: View {
             .frame(height: min(contentHeight, maximumContentHeight))
 
             Divider()
+            if let release = updates.available {
+                updateBanner(release)
+                Divider()
+            } else if updates.status != .idle {
+                updateStatus
+                Divider()
+            }
             footer
         }
         .frame(width: width)
         .onAppear { model.isPanelOpen = true }
         .onDisappear {
+            updates.clearStatus()
             model.isPanelOpen = false
             model.panelContentHeight = contentHeight
         }
@@ -118,6 +128,57 @@ struct PanelView: View {
             .joined(separator: " · ")
     }
 
+    private func updateBanner(_ release: UpdateChecker.Release) -> some View {
+        Button {
+            NSWorkspace.shared.open(release.page)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.down.circle.fill")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.tint)
+                Text("Readout \(release.version) is available")
+                    .font(.system(size: 12, weight: .medium))
+                Spacer(minLength: 0)
+                Text("View Release")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.tint)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// The answer to a check someone asked for. An available update is shown
+    /// by the banner instead, so this covers everything else.
+    private var updateStatus: some View {
+        HStack(spacing: 8) {
+            switch updates.status {
+            case .checking:
+                ProgressView()
+                    .controlSize(.mini)
+                    .frame(width: 14, height: 14)
+                Text("Checking for Updates…")
+            case .upToDate:
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                Text("Readout \(updates.currentVersion) is up to date")
+            case .failed:
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                Text("Couldn’t check for updates")
+            case .idle:
+                EmptyView()
+            }
+            Spacer(minLength: 0)
+        }
+        .font(.system(size: 12))
+        .symbolRenderingMode(.hierarchical)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+    }
+
     private var footer: some View {
         HStack(spacing: 10) {
             Button {
@@ -130,6 +191,13 @@ struct PanelView: View {
             Spacer(minLength: 0)
 
             Menu {
+                Text("Readout \(updates.currentVersion)")
+                Button("Check for Updates…") {
+                    Task { await updates.check(userInitiated: true) }
+                }
+                .disabled(updates.isBusy)
+                Toggle("Check for Updates Automatically", isOn: $updates.checksAutomatically)
+                Divider()
                 Toggle("Open at Login", isOn: Binding(
                     get: { model.launchesAtLogin },
                     set: { launchAtLoginError = model.setLaunchAtLogin($0) }
