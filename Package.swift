@@ -17,7 +17,6 @@ let package = Package(
             name: "Readout",
             dependencies: ["CReadoutCore"],
             path: "Sources/Readout",
-            resources: [.process("Resources")],
             linkerSettings: [
                 .linkedFramework("IOKit"),
                 .linkedFramework("SystemConfiguration"),
