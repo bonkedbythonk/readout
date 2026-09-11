@@ -181,10 +181,22 @@ pass and cost 11% CPU the whole time the panel was open. It lives in `@State`,
 and is handed to the model only on close so the next opening starts at the right
 size.
 
-Measured on an M4 Pro with `top -pid`: 0% CPU with nothing open, around 5% while
-the panel is open, and low double digits while the details window is open and
-updating. Verify the window is actually open before trusting a reading — a
-scripted click that misses makes an idle process look like a cheap one.
+**Nothing is sampled while nothing is open.** The menu bar item shows no
+readings, so with the panel and the details window both closed there is nobody
+to sample for. Sampling slowly in the background anyway looked cheap and was
+not: SwiftUI keeps a closed panel's views alive, so each background reading
+re-rendered them off screen, and after the panel had been opened once the idle
+app sat at 1.45% CPU instead of 0.25%. Stopping outright means the first
+reading after opening would average CPU and network over the whole gap, so a
+throwaway reading resets the counters half a second before the real one, and
+the graphs start over rather than splice an old tail onto new samples.
+
+Measured on an M4 Pro with `top -pid` and the process's CPU time over a minute:
+no CPU time and no wakeups with nothing open, whether or not the panel has been
+opened before; around 5% while the panel is open; low double digits while the
+details window is open and updating. Confirm the panel is actually open before
+trusting a reading — a scripted click that misses makes an idle process look
+like a cheap one, and the panel closes itself whenever another app takes focus.
 
 ## Private API
 

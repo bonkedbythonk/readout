@@ -104,6 +104,17 @@ actor Sampler {
         return sample
     }
 
+    /// Reads only to reset the counters that rates are measured against, after
+    /// a stretch with nothing sampled. The sensors are left alone: they report
+    /// levels rather than rates, so they have nothing to catch up on.
+    func prime() {
+        guard let handle = sampler.pointer else { return }
+        var raw = RoSnapshot()
+        ro_sample(handle, &raw)
+        var process = RoProcess()
+        _ = ro_top_processes(handle, &process, 1, ProcessSort.cpu.rawValue)
+    }
+
     /// Walking every process is the expensive read here, so it is deliberately
     /// a separate call the UI makes less often.
     func processes(limit: Int, sort: ProcessSort) -> [ProcessSample] {
