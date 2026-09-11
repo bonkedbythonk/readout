@@ -26,11 +26,57 @@ Sources/Readout/        the app
 Scripts/               build, package, run, draw the icon
 ```
 
+## Download
+
+Get the latest `.dmg` from
+[Releases](https://github.com/bonkedbythonk/readout/releases/latest), open it
+and drag Readout into Applications. It runs in the menu bar, with no Dock icon.
+
+Requires Apple silicon. Built and tested on macOS 26.
+
+Readout is not notarized, so macOS blocks the first launch with *"Apple could
+not verify Readout"*. Click **Done**, then **System Settings → Privacy &
+Security → Open Anyway**. Or, from Terminal:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Readout.app
+```
+
 ## Build and run
 
 ```bash
 Scripts/compile_and_run.sh
 ```
+
+That builds the Rust core, builds the app, assembles `Readout.app`, signs it
+ad hoc and launches it. `Scripts/package_app.sh release` stops after packaging.
+
+Apple silicon only as written: `Package.swift` links the `aarch64-apple-darwin`
+build of the core, and `Scripts/build_rust.sh` refuses an arch whose Rust target
+is not installed.
+
+## Releasing
+
+```bash
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+The tag push runs `.github/workflows/release.yml`, which builds on a macOS
+runner, stamps the tag's version into `Info.plist` and publishes a release with
+the disk image, a zip and `SHA256SUMS`. The install steps at the top of each
+release come from `.github/release-notes.md`; the change list under them is
+generated from the commits.
+
+Running the workflow by hand from the Actions tab builds the same files as an
+artifact and publishes nothing. `Scripts/make_release.sh` does the build
+locally, into `dist/`.
+
+Downloads are signed ad hoc, which is why Gatekeeper stops them. Signing with a
+Developer ID and notarizing is the only thing that removes that step, and needs
+a paid Apple developer account.
+
+## App icon
 
 `Scripts/make_icon.sh` redraws `Icon.icns` from `Scripts/make_icon.swift`,
 which renders the mark with Core Graphics at every size an `.iconset` needs. It
@@ -51,12 +97,6 @@ slender one renders as a smudge.
 `Readout-mark.png` is the same mark at 1024 on transparency, for Icon Composer
 if you ever want to author the container deliberately instead of taking the
 system's.
-
-That builds the Rust core, builds the app, assembles `Readout.app`, signs it
-ad hoc and launches it. `Scripts/package_app.sh release` stops after packaging.
-
-Apple silicon only as written: `Scripts/build_rust.sh` maps `arm64` to
-`aarch64-apple-darwin` and refuses an arch whose Rust target is not installed.
 
 ## Where the numbers come from
 
