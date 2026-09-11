@@ -7,6 +7,9 @@ core/target/
 # Packaged app bundle, rebuilt by Scripts/package_app.sh
 Readout.app/
 
+# Release downloads, rebuilt by Scripts/make_release.sh
+dist/
+
 # Generated icon, and the bare mark for Icon Composer
 Icon.icns
 Readout-mark.png

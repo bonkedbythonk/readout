@@ -1,0 +1,56 @@
+name: Release
+
+# Pushing a tag like v0.2.0 builds Readout and publishes a GitHub release with
+# the disk image, the zip and their checksums attached.
+#
+# Running it by hand from the Actions tab builds the same files and keeps them
+# as a workflow artifact without publishing anything — a dry run.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Toolchain
+        run: |
+          echo "$(uname -m), macOS $(sw_vers -productVersion)"
+          xcodebuild -version
+          swift --version
+          rustup target add aarch64-apple-darwin
+          cargo --version
+
+      - name: Version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          echo "MARKETING_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=${{ github.run_number }}" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: Scripts/make_release.sh
+
+      # The .app itself is never uploaded: the artifact action re-zips it and
+      # breaks the bundle. The disk image and ditto's zip survive intact.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Readout
+          path: dist/*
+          if-no-files-found: error
+
+      - name: Publish
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "Readout ${GITHUB_REF_NAME#v}" \
+            --notes-file .github/release-notes.md \
+            --generate-notes

@@ -12,12 +12,15 @@ MENU_BAR_APP=${MENU_BAR_APP:-1}
 SIGNING_MODE=${SIGNING_MODE:-}
 APP_IDENTITY=${APP_IDENTITY:-}
 
+# version.env holds the defaults. A version already in the environment wins, so
+# a release build stamps the tag's version rather than whatever the file says.
+ENV_MARKETING_VERSION=${MARKETING_VERSION:-}
+ENV_BUILD_NUMBER=${BUILD_NUMBER:-}
 if [[ -f "$ROOT/version.env" ]]; then
   source "$ROOT/version.env"
-else
-  MARKETING_VERSION=${MARKETING_VERSION:-0.1.0}
-  BUILD_NUMBER=${BUILD_NUMBER:-1}
 fi
+MARKETING_VERSION=${ENV_MARKETING_VERSION:-${MARKETING_VERSION:-0.1.0}}
+BUILD_NUMBER=${ENV_BUILD_NUMBER:-${BUILD_NUMBER:-1}}
 
 ARCH_LIST=( ${ARCHES:-} )
 if [[ ${#ARCH_LIST[@]} -eq 0 ]]; then
