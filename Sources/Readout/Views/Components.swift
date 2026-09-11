@@ -83,8 +83,7 @@ struct MeterBar: View {
 
 /// A bar split into parts, used for the memory breakdown.
 struct StackedBar: View {
-    struct Segment: Identifiable {
-        let id = UUID()
+    struct Segment {
         let value: Double
         let color: Color
     }
@@ -96,10 +95,14 @@ struct StackedBar: View {
     var body: some View {
         GeometryReader { proxy in
             HStack(spacing: 1.5) {
-                ForEach(segments) { segment in
+                // Keyed by position. The card builds its segments afresh with
+                // every sample, and when each carried a new UUID, SwiftUI tore
+                // down and re-created every part of the bar each time instead
+                // of resizing the ones it had.
+                ForEach(segments.indices, id: \.self) { index in
                     Rectangle()
-                        .fill(segment.color)
-                        .frame(width: width(for: segment.value, in: proxy.size.width))
+                        .fill(segments[index].color)
+                        .frame(width: width(for: segments[index].value, in: proxy.size.width))
                 }
                 Rectangle().fill(Color.primary.opacity(0.09))
             }
