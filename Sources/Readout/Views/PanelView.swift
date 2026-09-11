@@ -33,52 +33,14 @@ struct PanelView: View {
             Divider()
 
             ScrollView {
-                VStack(spacing: 10) {
-                    ProcessorCard(
-                        cpu: model.sample.cpu,
-                        history: model.cpuHistory,
-                        performanceCores: model.host.performanceCores
-                    )
-                    AppListCard(
-                        processes: model.processes,
-                        sort: $model.processSort,
-                        limit: 4
-                    )
-                    MemoryCard(memory: model.sample.memory)
-                    if model.sample.thermals.socPeak != nil
-                        || !model.sample.thermals.fans.isEmpty {
-                        ThermalCard(thermals: model.sample.thermals)
-                    }
-                    if model.sample.thermals.systemWatts != nil {
-                        PowerCard(
-                            watts: model.sample.thermals.systemWatts,
-                            topEnergy: model.topEnergyProcess,
-                            battery: model.sample.battery
-                        )
-                    }
-                    if let battery = model.sample.battery {
-                        BatteryCard(battery: battery)
-                    }
-                    if !model.sample.volumes.isEmpty {
-                        StorageCard(volumes: model.sample.volumes)
-                    }
-                    NetworkCard(network: model.sample.network, history: model.networkHistory)
+                // SwiftUI keeps a closed panel's views alive, and whatever they
+                // read from the model re-renders them off screen with every
+                // sample — every two seconds while the details window is open.
+                // Reading the samples only while open means a closed panel no
+                // longer depends on them.
+                if model.isPanelOpen {
+                    cards
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 12)
-                .background(
-                    GeometryReader { proxy in
-                        Color.clear.onChange(of: proxy.size.height, initial: true) { _, height in
-                            guard height > 0 else { return }
-                            // Resizing the window is not something to ease
-                            // into: animating it fights the menu bar's own
-                            // open animation.
-                            var transaction = Transaction()
-                            transaction.disablesAnimations = true
-                            withTransaction(transaction) { contentHeight = height }
-                        }
-                    }
-                )
             }
             .scrollBounceBehavior(.basedOnSize)
             .frame(height: min(contentHeight, maximumContentHeight))
@@ -100,6 +62,54 @@ struct PanelView: View {
             model.isPanelOpen = false
             model.panelContentHeight = contentHeight
         }
+    }
+
+    private var cards: some View {
+        VStack(spacing: 10) {
+            ProcessorCard(
+                cpu: model.sample.cpu,
+                history: model.cpuHistory,
+                performanceCores: model.host.performanceCores
+            )
+            AppListCard(
+                processes: model.processes,
+                sort: $model.processSort,
+                limit: 4
+            )
+            MemoryCard(memory: model.sample.memory)
+            if model.sample.thermals.socPeak != nil
+                || !model.sample.thermals.fans.isEmpty {
+                ThermalCard(thermals: model.sample.thermals)
+            }
+            if model.sample.thermals.systemWatts != nil {
+                PowerCard(
+                    watts: model.sample.thermals.systemWatts,
+                    topEnergy: model.topEnergyProcess,
+                    battery: model.sample.battery
+                )
+            }
+            if let battery = model.sample.battery {
+                BatteryCard(battery: battery)
+            }
+            if !model.sample.volumes.isEmpty {
+                StorageCard(volumes: model.sample.volumes)
+            }
+            NetworkCard(network: model.sample.network, history: model.networkHistory)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 12)
+        .background(
+            GeometryReader { proxy in
+                Color.clear.onChange(of: proxy.size.height, initial: true) { _, height in
+                    guard height > 0 else { return }
+                    // Resizing the window is not something to ease into:
+                    // animating it fights the menu bar's own open animation.
+                    var transaction = Transaction()
+                    transaction.disablesAnimations = true
+                    withTransaction(transaction) { contentHeight = height }
+                }
+            }
+        )
     }
 
     private var header: some View {
