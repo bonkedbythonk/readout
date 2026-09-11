@@ -12,15 +12,15 @@ MENU_BAR_APP=${MENU_BAR_APP:-1}
 SIGNING_MODE=${SIGNING_MODE:-}
 APP_IDENTITY=${APP_IDENTITY:-}
 
-# version.env holds the defaults. A version already in the environment wins, so
-# a release build stamps the tag's version rather than whatever the file says.
-ENV_MARKETING_VERSION=${MARKETING_VERSION:-}
-ENV_BUILD_NUMBER=${BUILD_NUMBER:-}
-if [[ -f "$ROOT/version.env" ]]; then
-  source "$ROOT/version.env"
+# A release build sets the version from its tag. Anything else takes the newest
+# tag it was built on, so a local build never reports its own release as an
+# update — which a fixed default in a file would, the moment a release passed it.
+if [[ -z "${MARKETING_VERSION:-}" ]]; then
+  LATEST_TAG=$(git -C "$ROOT" describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)
+  MARKETING_VERSION=${LATEST_TAG#v}
+  MARKETING_VERSION=${MARKETING_VERSION:-0.0.0}
 fi
-MARKETING_VERSION=${ENV_MARKETING_VERSION:-${MARKETING_VERSION:-0.1.0}}
-BUILD_NUMBER=${ENV_BUILD_NUMBER:-${BUILD_NUMBER:-1}}
+BUILD_NUMBER=${BUILD_NUMBER:-$(git -C "$ROOT" rev-list --count HEAD 2>/dev/null || echo 1)}
 
 ARCH_LIST=( ${ARCHES:-} )
 if [[ ${#ARCH_LIST[@]} -eq 0 ]]; then

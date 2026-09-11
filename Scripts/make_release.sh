@@ -2,7 +2,8 @@
 # Package Readout.app and wrap it for download: a disk image to drag into
 # Applications, a zip for anyone scripting an install, and their checksums.
 #
-# MARKETING_VERSION and BUILD_NUMBER in the environment override version.env.
+# MARKETING_VERSION and BUILD_NUMBER in the environment override the version
+# package_app.sh would otherwise take from the newest tag.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)

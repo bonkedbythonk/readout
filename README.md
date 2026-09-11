@@ -42,6 +42,16 @@ Security → Open Anyway**. Or, from Terminal:
 xattr -dr com.apple.quarantine /Applications/Readout.app
 ```
 
+### Updates
+
+Readout asks GitHub once a day whether a newer release exists, and when one
+does, the bottom of the panel says so and links to it. **⋯ → Check for
+Updates…** asks right away. It only tells you: a new version installs the same
+way as the first, Gatekeeper step included.
+
+The check is one unauthenticated request to `api.github.com` and sends nothing
+about your Mac. **⋯ → Check for Updates Automatically** turns it off.
+
 ## Build and run
 
 ```bash
