@@ -6,8 +6,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_NAME=${APP_NAME:-Readout}
 APP_BUNDLE="${ROOT_DIR}/${APP_NAME}.app"
 APP_PROCESS_PATTERN="${APP_NAME}.app/Contents/MacOS/${APP_NAME}"
-DEBUG_PROCESS_PATTERN="${ROOT_DIR}/.build/debug/${APP_NAME}"
-RELEASE_PROCESS_PATTERN="${ROOT_DIR}/.build/release/${APP_NAME}"
+# A binary run straight from the build folder, wherever SwiftPM put it.
+BUILD_PROCESS_PATTERN="${ROOT_DIR}/\.build/.*/${APP_NAME}$"
 RUN_TESTS=0
 RELEASE_ARCHES=""
 
@@ -28,8 +28,7 @@ done
 
 log "==> Killing existing ${APP_NAME} instances"
 pkill -f "${APP_PROCESS_PATTERN}" 2>/dev/null || true
-pkill -f "${DEBUG_PROCESS_PATTERN}" 2>/dev/null || true
-pkill -f "${RELEASE_PROCESS_PATTERN}" 2>/dev/null || true
+pkill -f "${BUILD_PROCESS_PATTERN}" 2>/dev/null || true
 pkill -x "${APP_NAME}" 2>/dev/null || true
 
 if [[ "${RUN_TESTS}" == "1" ]]; then

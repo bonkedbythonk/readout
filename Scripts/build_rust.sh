@@ -19,15 +19,19 @@ for ARCH in "${ARCH_LIST[@]}"; do
   echo "==> cargo build ($RUST_TARGET, $CONF)"
   ( cd "$ROOT/core" && cargo build --target "$RUST_TARGET" $([[ "$CONF" == release ]] && echo --release) )
 
-  # SwiftPM has no idea the static library exists, so it will happily reuse a
-  # binary linked against an older copy. Drop the executable whenever the
-  # library's contents change and SwiftPM links again.
+  # SwiftPM's older build system has no idea the static library exists, so it
+  # will happily reuse a binary linked against an older copy. Drop the
+  # executable whenever the library's contents change and SwiftPM links again.
+  # The newer build system relinks on its own; this costs it nothing. Ask
+  # SwiftPM where the binary is: the two build systems put it in different
+  # places, and a hardcoded path silently deletes nothing.
   LIB="$ROOT/core/target/$RUST_TARGET/$CONF/libreadout_core.a"
   STAMP="$ROOT/.build/rust-$RUST_TARGET-$CONF.stamp"
   mkdir -p "$(dirname "$STAMP")"
   NEW_SUM=$(shasum -a 256 "$LIB" | cut -d' ' -f1)
   if [[ "$(cat "$STAMP" 2>/dev/null || true)" != "$NEW_SUM" ]]; then
-    rm -f "$ROOT/.build/$ARCH-apple-macosx/$CONF/Readout" "$ROOT/.build/$CONF/Readout"
+    BIN_DIR=$(cd "$ROOT" && swift build -c "$CONF" --arch "$ARCH" --show-bin-path)
+    rm -f "$BIN_DIR/Readout"
     printf '%s' "$NEW_SUM" > "$STAMP"
   fi
 done
