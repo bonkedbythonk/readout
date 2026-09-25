@@ -17,8 +17,7 @@ final class ReadoutModel {
     private(set) var host = HostSample()
     private(set) var sample = SystemSample()
     private(set) var processes: [ProcessSample] = []
-    /// The single heaviest energy user, kept fresh even when the detailed
-    /// process list is not on screen.
+    /// The single heaviest energy user, whatever the list is sorted by.
     private(set) var topEnergyProcess: ProcessSample?
 
     /// Remembered across openings: the panel is rebuilt from scratch every
@@ -129,11 +128,10 @@ final class ReadoutModel {
 
     private func refreshProcesses() async {
         processRefreshes += 1
-        processes = await sampler.processes(limit: 12, sort: processSort)
-        if processSort == .energy {
-            topEnergyProcess = processes.first
-        } else if let heaviest = processes.max(by: { $0.energyImpact < $1.energyImpact }) {
-            topEnergyProcess = heaviest
+        let reading = await sampler.processes(limit: 12, sort: processSort)
+        processes = reading.list
+        if let topEnergy = reading.topEnergy {
+            topEnergyProcess = topEnergy
         }
     }
 

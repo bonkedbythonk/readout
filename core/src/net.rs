@@ -10,6 +10,10 @@ pub struct Counters {
     pub tx: u64,
 }
 
+/// `IFT_LOOP` from `<net/if_types.h>`, which `libc` does not export.
+const IFT_LOOP: u8 = 0x18;
+
+#[derive(Default)]
 pub struct NetSampler {
     previous: Option<(Counters, Instant)>,
 }
@@ -24,7 +28,7 @@ pub struct NetLoad {
 
 impl NetSampler {
     pub fn new() -> Self {
-        Self { previous: None }
+        Self::default()
     }
 
     pub fn sample(&mut self) -> NetLoad {
@@ -74,19 +78,14 @@ fn read_counters() -> Counters {
             break;
         }
 
-        let msg_type = unsafe { std::ptr::read_unaligned(base.add(3) as *const u8) };
+        let msg_type = unsafe { std::ptr::read_unaligned(base.add(3)) };
         if msg_type as i32 == libc::RTM_IFINFO2 && msglen >= header_size {
             let header: libc::if_msghdr2 = unsafe { std::ptr::read_unaligned(base as *const _) };
-            // The interface's sockaddr_dl follows the header and carries its name.
-            let is_loopback = unsafe {
-                let sdl = base.add(header_size) as *const libc::sockaddr_dl;
-                let name_len = (*sdl).sdl_nlen as usize;
-                let name: Vec<u8> = (0..name_len.min(16))
-                    .map(|i| (*sdl).sdl_data[i] as u8)
-                    .collect();
-                name.starts_with(b"lo")
-            };
-            if !is_loopback {
+            // The type is in the header itself. Reading the name out of the
+            // sockaddr_dl that follows meant indexing libc's 12-byte
+            // `sdl_data`, which panics — and so aborts the app — for any
+            // interface name longer than that.
+            if header.ifm_data.ifi_type != IFT_LOOP {
                 totals.rx += header.ifm_data.ifi_ibytes;
                 totals.tx += header.ifm_data.ifi_obytes;
             }

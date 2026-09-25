@@ -7,7 +7,6 @@ use std::time::Instant;
 
 pub struct Process {
     pub pid: i32,
-    pub parent_pid: i32,
     pub name: String,
     /// Share of a single core, so 2.0 means two cores fully busy.
     pub cpu: f64,
@@ -60,6 +59,12 @@ pub struct ProcSampler {
     nanos_per_tick: f64,
 }
 
+impl Default for ProcSampler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ProcSampler {
     pub fn new() -> Self {
         Self {
@@ -95,11 +100,16 @@ impl ProcSampler {
             };
             current.insert(pid, counters);
 
-            let before = self
-                .previous
-                .get(&pid)
-                .copied()
-                .filter(|before| before.started == counters.started);
+            let previous = self.previous.get(&pid).copied();
+            let before = previous.filter(|before| before.started == counters.started);
+            if previous.is_some() && before.is_none() {
+                // A recycled pid. The caches below are keyed by pid alone, and
+                // are otherwise only dropped once a pid leaves the table, so
+                // the new process would take over its predecessor's app for
+                // as long as it ran.
+                self.responsible.remove(&pid);
+                self.bundles.remove(&pid);
+            }
             let (cpu, energy_impact) = match (before, elapsed_nanos > 0.0) {
                 (Some(before), true) => {
                     let cpu_delta = counters
@@ -128,7 +138,6 @@ impl ProcSampler {
 
             out.push(Process {
                 pid,
-                parent_pid: info.pbsd.pbi_ppid as i32,
                 name,
                 cpu,
                 // Fall back to resident size only when the footprint is
@@ -206,7 +215,7 @@ impl ProcSampler {
                 }
                 None => {
                     order.push(key.clone());
-                    groups.insert(key, Process { parent_pid: 0, name, ..process });
+                    groups.insert(key, Process { name, ..process });
                 }
             }
         }

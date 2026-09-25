@@ -1,6 +1,5 @@
 //! Per-core and aggregate CPU load, sampled as deltas between calls.
 
-use std::ffi::c_void;
 use std::mem;
 
 pub const MAX_CORES: usize = 64;
@@ -69,7 +68,6 @@ fn read_ticks() -> Option<Vec<Ticks>> {
             info as libc::vm_address_t,
             info_count as usize * mem::size_of::<libc::integer_t>(),
         );
-        let _ = std::ptr::null::<c_void>();
         Some(out)
     }
 }

@@ -12,8 +12,6 @@ pub struct Memory {
     pub compressed: u64,
     pub cached: u64,
     pub free: u64,
-    /// Proxy for Activity Monitor's pressure graph: wired + compressed over total.
-    pub pressure: f64,
     /// 0 = normal, 1 = warning, 2 = critical (kern.memorystatus_vm_pressure_level).
     pub pressure_level: u32,
     pub swap_total: u64,
@@ -52,9 +50,6 @@ pub fn sample() -> Memory {
         }
     }
 
-    if out.total > 0 {
-        out.pressure = (out.wired + out.compressed) as f64 / out.total as f64;
-    }
     out.pressure_level = match sysctl_scalar::<u32>("kern.memorystatus_vm_pressure_level") {
         Some(4) => 2,
         Some(2) => 1,

@@ -22,7 +22,6 @@ final class SMC {
 
     private enum Selector: UInt8 {
         case readKey = 5
-        case keyFromIndex = 8
         case keyInfo = 9
     }
 
@@ -63,19 +62,6 @@ final class SMC {
         guard let response = call(request) else { return nil }
         let payload = Array(response[Offset.bytes ..< Offset.total])
         return Self.decode(payload, size: info.size, type: info.type)
-    }
-
-    /// Every key this Mac's SMC publishes, in its own order.
-    func allKeys() -> [String] {
-        guard let count = read("#KEY").map({ Int($0) }), count > 0 else { return [] }
-        return (0 ..< count).compactMap { index in
-            var request = [UInt8](repeating: 0, count: Offset.total)
-            writeUInt32(UInt32(index), into: &request, at: Offset.dataSize)
-            request[Offset.data8] = Selector.keyFromIndex.rawValue
-            guard let response = call(request) else { return nil }
-            let code = readUInt32(response, at: Offset.key)
-            return Self.string(from: code)
-        }
     }
 
     private func keyInfo(for code: UInt32) -> KeyInfo? {
@@ -135,8 +121,10 @@ final class SMC {
             let raw = UInt32(bytes[0]) | UInt32(bytes[1]) << 8
                 | UInt32(bytes[2]) << 16 | UInt32(bytes[3]) << 24
             return Double(Float(bitPattern: raw))
-        case "ui8 ", "si8 ":
+        case "ui8 ":
             return Double(bytes[0])
+        case "si8 ":
+            return Double(Int8(bitPattern: bytes[0]))
         case "ui16":
             return Double(UInt16(bytes[0]) << 8 | UInt16(bytes[1]))
         case "ui32":
