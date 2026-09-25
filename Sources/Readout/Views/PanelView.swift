@@ -192,7 +192,7 @@ struct PanelView: View {
     private var footer: some View {
         HStack(spacing: 10) {
             Button {
-                NSApp.activate(ignoringOtherApps: true)
+                NSApp.activate()
                 openWindow(id: DetailsWindow.identifier)
             } label: {
                 Label("Details", systemImage: "list.bullet.rectangle")

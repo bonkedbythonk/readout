@@ -21,10 +21,10 @@ fn main() {
 
     println!("per call:");
     time("cpu", 20, || cpu_sampler.sample());
-    time("memory", 20, || mem::sample());
+    time("memory", 20, mem::sample);
     time("network", 20, || net_sampler.sample());
-    time("volumes", 20, || disk::volumes());
-    time("host info", 20, || host::info());
+    time("volumes", 20, disk::volumes);
+    time("host info", 20, host::info);
     time("processes (warm)", 5, || proc_sampler.sample_apps());
 
     let mut cold = procs::ProcSampler::new();

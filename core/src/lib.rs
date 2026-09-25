@@ -16,7 +16,7 @@ pub mod sys;
 
 use std::ffi::c_char;
 
-pub const RO_ABI_VERSION: u32 = 2;
+pub const RO_ABI_VERSION: u32 = 3;
 
 pub const RO_SORT_CPU: u32 = 0;
 pub const RO_SORT_MEMORY: u32 = 1;
@@ -54,7 +54,6 @@ pub struct RoSnapshot {
     pub memory_compressed: u64,
     pub memory_cached: u64,
     pub memory_free: u64,
-    pub memory_pressure: f64,
     pub memory_pressure_level: u32,
     pub swap_total: u64,
     pub swap_used: u64,
@@ -164,7 +163,6 @@ pub unsafe extern "C" fn ro_sample(sampler: *mut RoSampler, out: *mut RoSnapshot
     out.memory_compressed = memory.compressed;
     out.memory_cached = memory.cached;
     out.memory_free = memory.free;
-    out.memory_pressure = memory.pressure;
     out.memory_pressure_level = memory.pressure_level;
     out.swap_total = memory.swap_total;
     out.swap_used = memory.swap_used;
@@ -201,17 +199,24 @@ pub unsafe extern "C" fn ro_volumes(out: *mut RoVolume, capacity: u32) -> u32 {
 /// Fills up to `capacity` processes, heaviest first by `sort`, and returns how
 /// many were written.
 ///
+/// `top_energy`, when not null, receives the heaviest energy user of the same
+/// reading whenever the return value is non-zero. Under any other sort it may
+/// sit outside the first `capacity` rows, and asking again would take a second
+/// reading microseconds after the first, differencing counters over no time.
+///
 /// This walks every process, so call it on a slower cadence than `ro_sample`.
 ///
 /// # Safety
 /// `sampler` must come from `ro_sampler_new`; `out` must point to at least
-/// `capacity` writable `RoProcess` values.
+/// `capacity` writable `RoProcess` values; `top_energy` must be null or
+/// writable.
 #[no_mangle]
 pub unsafe extern "C" fn ro_top_processes(
     sampler: *mut RoSampler,
     out: *mut RoProcess,
     capacity: u32,
     sort: u32,
+    top_energy: *mut RoProcess,
 ) -> u32 {
     let sampler = match sampler.as_mut() {
         Some(sampler) => sampler,
@@ -221,14 +226,24 @@ pub unsafe extern "C" fn ro_top_processes(
         return 0;
     }
 
+    let by_energy = |a: &procs::Process, b: &procs::Process| {
+        b.energy_impact
+            .partial_cmp(&a.energy_impact)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    };
+
     let mut processes = sampler.procs.sample_apps();
+    if let (Some(slot), Some(leader)) = (
+        top_energy.as_mut(),
+        // `by_energy` orders heaviest first, so the minimum is the heaviest.
+        processes.iter().min_by(|a, b| by_energy(a, b)),
+    ) {
+        write_process(slot, leader);
+    }
+
     match sort {
-        RO_SORT_MEMORY => processes.sort_by(|a, b| b.memory.cmp(&a.memory)),
-        RO_SORT_ENERGY => processes.sort_by(|a, b| {
-            b.energy_impact
-                .partial_cmp(&a.energy_impact)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        }),
+        RO_SORT_MEMORY => processes.sort_by_key(|process| std::cmp::Reverse(process.memory)),
+        RO_SORT_ENERGY => processes.sort_by(by_energy),
         _ => processes.sort_by(|a, b| {
             b.cpu.partial_cmp(&a.cpu).unwrap_or(std::cmp::Ordering::Equal)
         }),
@@ -237,11 +252,15 @@ pub unsafe extern "C" fn ro_top_processes(
     let slots = std::slice::from_raw_parts_mut(out, capacity as usize);
     let count = processes.len().min(slots.len());
     for (slot, process) in slots.iter_mut().zip(processes.iter()) {
-        slot.pid = process.pid;
-        sys::copy_str(&mut slot.name, &process.name);
-        slot.cpu = process.cpu;
-        slot.memory = process.memory;
-        slot.energy_impact = process.energy_impact;
+        write_process(slot, process);
     }
     count as u32
+}
+
+fn write_process(slot: &mut RoProcess, process: &procs::Process) {
+    slot.pid = process.pid;
+    sys::copy_str(&mut slot.name, &process.name);
+    slot.cpu = process.cpu;
+    slot.memory = process.memory;
+    slot.energy_impact = process.energy_impact;
 }

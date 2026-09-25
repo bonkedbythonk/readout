@@ -20,7 +20,6 @@ struct MemorySample: Sendable, Equatable {
     var wired: UInt64 = 0
     var compressed: UInt64 = 0
     var cached: UInt64 = 0
-    var pressure = 0.0
     var pressureLevel: UInt32 = 0
     var swapUsed: UInt64 = 0
     var swapTotal: UInt64 = 0
