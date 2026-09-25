@@ -11,7 +11,7 @@
 
 // Must match what ro_abi_version() returns: a stale core/target library
 // linked against a newer header would otherwise misread every struct.
-#define RO_ABI_VERSION 3
+#define RO_ABI_VERSION 4
 #define RO_MAX_CORES 64
 
 typedef struct RoSampler RoSampler;
@@ -53,8 +53,6 @@ typedef struct {
 
     double network_rx_bytes_per_sec;
     double network_tx_bytes_per_sec;
-    uint64_t network_rx_total;
-    uint64_t network_tx_total;
 } RoSnapshot;
 
 typedef struct {

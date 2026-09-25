@@ -92,9 +92,7 @@ actor Sampler {
         )
         sample.network = NetworkSample(
             downloadBytesPerSecond: raw.network_rx_bytes_per_sec,
-            uploadBytesPerSecond: raw.network_tx_bytes_per_sec,
-            downloadTotal: raw.network_rx_total,
-            uploadTotal: raw.network_tx_total
+            uploadBytesPerSecond: raw.network_tx_bytes_per_sec
         )
         sample.uptime = TimeInterval(raw.uptime_seconds)
         sample.processCount = Int(raw.process_count)

@@ -298,8 +298,6 @@ struct NetworkCard: View {
             if detailed {
                 StatRow(label: "Download", value: Format.rate(network.downloadBytesPerSecond))
                 StatRow(label: "Upload", value: Format.rate(network.uploadBytesPerSecond))
-                StatRow(label: "Received since boot", value: Format.bytes(network.downloadTotal))
-                StatRow(label: "Sent since boot", value: Format.bytes(network.uploadTotal))
             } else {
                 HStack(spacing: 16) {
                     Label(Format.rate(network.downloadBytesPerSecond), systemImage: "arrow.down")

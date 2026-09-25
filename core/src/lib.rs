@@ -16,7 +16,7 @@ pub mod sys;
 
 use std::ffi::c_char;
 
-pub const RO_ABI_VERSION: u32 = 3;
+pub const RO_ABI_VERSION: u32 = 4;
 
 pub const RO_SORT_CPU: u32 = 0;
 pub const RO_SORT_MEMORY: u32 = 1;
@@ -60,8 +60,6 @@ pub struct RoSnapshot {
 
     pub network_rx_bytes_per_sec: f64,
     pub network_tx_bytes_per_sec: f64,
-    pub network_rx_total: u64,
-    pub network_tx_total: u64,
 }
 
 #[repr(C)]
@@ -170,8 +168,6 @@ pub unsafe extern "C" fn ro_sample(sampler: *mut RoSampler, out: *mut RoSnapshot
     let network = sampler.net.sample();
     out.network_rx_bytes_per_sec = network.rx_bytes_per_sec;
     out.network_tx_bytes_per_sec = network.tx_bytes_per_sec;
-    out.network_rx_total = network.rx_total;
-    out.network_tx_total = network.tx_total;
 }
 
 /// Fills up to `capacity` volumes and returns how many were written.
