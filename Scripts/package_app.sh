@@ -78,13 +78,12 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
+# SwiftPM's newer build system writes to .build/out/Products/<Conf>, the older
+# one to .build/<arch>-apple-macosx/<conf>, so ask rather than guess.
 build_product_path() {
   local name="$1"
   local arch="$2"
-  case "$arch" in
-    arm64|x86_64) echo ".build/${arch}-apple-macosx/$CONF/$name" ;;
-    *) echo ".build/$CONF/$name" ;;
-  esac
+  echo "$(swift build -c "$CONF" --arch "$arch" --show-bin-path)/$name"
 }
 
 verify_binary_arches() {
@@ -149,15 +148,11 @@ if [[ ${#SWIFTPM_BUNDLES[@]} -gt 0 ]]; then
 fi
 
 # Embed frameworks if any exist in the build folder.
-FRAMEWORK_DIRS=(".build/$CONF" ".build/${ARCH_LIST[0]}-apple-macosx/$CONF")
-for dir in "${FRAMEWORK_DIRS[@]}"; do
-  if compgen -G "${dir}/*.framework" >/dev/null; then
-    cp -R "${dir}/"*.framework "$APP/Contents/Frameworks/"
-    chmod -R a+rX "$APP/Contents/Frameworks"
-    install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP/Contents/MacOS/$APP_NAME"
-    break
-  fi
-done
+if compgen -G "${PREFERRED_BUILD_DIR}/*.framework" >/dev/null; then
+  cp -R "${PREFERRED_BUILD_DIR}/"*.framework "$APP/Contents/Frameworks/"
+  chmod -R a+rX "$APP/Contents/Frameworks"
+  install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP/Contents/MacOS/$APP_NAME"
+fi
 
 if [[ -f "$ICON_TARGET" ]]; then
   cp "$ICON_TARGET" "$APP/Contents/Resources/Icon.icns"
