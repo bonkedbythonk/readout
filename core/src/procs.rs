@@ -171,8 +171,8 @@ impl ProcSampler {
     /// is how the system itself tracks this and how Activity Monitor groups
     /// its rows. That matters for work an app farms out to a system process:
     /// the virtual machine holding 4 GB on this Mac runs from
-    /// `Virtualization.framework`, and only the responsibility link shows it
-    /// is Claude's.
+    /// `Virtualization.framework`, and only the responsibility link shows
+    /// which app asked for it.
     ///
     /// Attribution then falls back to the bundle on disk: everything inside
     /// `Something.app` counts as Something, however deeply the helper bundles
