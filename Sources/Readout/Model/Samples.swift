@@ -30,8 +30,6 @@ struct MemorySample: Sendable, Equatable {
 struct NetworkSample: Sendable, Equatable {
     var downloadBytesPerSecond = 0.0
     var uploadBytesPerSecond = 0.0
-    var downloadTotal: UInt64 = 0
-    var uploadTotal: UInt64 = 0
 }
 
 struct FanSample: Sendable, Equatable, Identifiable {

@@ -12,7 +12,7 @@ per-core load, every mounted volume — lives in a separate details window.
 core/                  Rust metrics core, built as a static library
   src/cpu.rs           per-core load from host_processor_info deltas
   src/mem.rs           Activity Monitor's memory figures from host_statistics64
-  src/net.rs           throughput from the routing table's 64-bit counters
+  src/net.rs           throughput from the routing table's interface counters
   src/disk.rs          mounted volumes via getfsstat
   src/procs.rs         per-process CPU, memory and energy, grouped into apps
   src/host.rs          machine identity, uptime, load average
@@ -115,7 +115,7 @@ system's.
 | CPU, per core | `host_processor_info`, tick deltas between samples |
 | Memory | `host_statistics64`; used = app + wired + compressed, as Activity Monitor counts it |
 | Memory pressure | `kern.memorystatus_vm_pressure_level` — the state macOS itself acts on |
-| Network | `NET_RT_IFLIST2`, whose counters are 64-bit and so do not wrap |
+| Network | `NET_RT_IFLIST2`, differenced per interface to survive a 32-bit wrap |
 | Volumes | `getfsstat`, filtered to the startup disk and `/Volumes` |
 | Processes | `proc_listallpids` + `proc_pidinfo`, grouped by responsible app |
 | Temperatures | `IOHIDEventSystemClient` on the Apple vendor HID page |
@@ -167,6 +167,14 @@ against its predecessor's — which showed up once as an energy score fifteen
 times the next app's, appearing from nowhere. Each sample also records the
 process start time, and a pid whose start time changed is treated as a new
 process with no history.
+
+**Network counters wrap at 4 GB.** `NET_RT_IFLIST2` carries 64-bit fields, but
+the kernel only fills them for callers holding the private
+`com.apple.private.network.statistics` entitlement, which `netstat` has.
+Everyone else gets each counter truncated to 32 bits and rounded to the
+kilobyte: measured, en0 read 3.46 GB here while `netstat` said 136.6 GB, which is
+136.6 GB modulo 2³². So throughput is differenced per interface, allowing for
+the wrap, and only then summed, and there is no total since boot to show.
 
 **Only your own processes are visible.** `proc_pidinfo` returns nothing for
 other users' processes without privileges. `/usr/bin/top` sees them because it
