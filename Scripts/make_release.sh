@@ -13,9 +13,7 @@ APP_NAME=Readout
 APP="$ROOT/$APP_NAME.app"
 DIST="$ROOT/dist"
 
-# Apple silicon only: Package.swift links the aarch64 build of the Rust core,
-# and the thermal sensors are read the Apple silicon way.
-ARCHES=arm64 "$ROOT/Scripts/package_app.sh" release
+"$ROOT/Scripts/package_app.sh" release
 
 codesign --verify --deep --strict "$APP"
 VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "$APP/Contents/Info.plist")
