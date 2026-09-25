@@ -1,0 +1,48 @@
+name: CI
+
+# Lints and tests the Rust core, then builds and packages the app the way a
+# release would, so a broken build shows up on the pull request rather than on
+# the next tag push. Packaging is included deliberately: a toolchain moving its
+# build products once broke package_app.sh while swift build still passed.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      # Full history, for the tags package_app.sh takes its version from.
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Toolchain
+        run: |
+          echo "$(uname -m), macOS $(sw_vers -productVersion)"
+          swift --version
+          rustup target add aarch64-apple-darwin
+          rustup component add clippy
+          cargo --version
+
+      - name: Clippy
+        working-directory: core
+        run: cargo clippy --release --all-targets -- -D warnings
+
+      - name: Test
+        working-directory: core
+        run: cargo test --release
+
+      - name: Package
+        run: |
+          Scripts/package_app.sh release
+          codesign --verify --deep --strict Readout.app
