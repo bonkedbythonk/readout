@@ -14,7 +14,16 @@ actor Sampler {
     /// the actor, which is what makes the unchecked conformance true.
     private final class Handle: @unchecked Sendable {
         let pointer: OpaquePointer?
-        init() { pointer = ro_sampler_new() }
+        init() {
+            // The core is a separately built static library, so a stale copy
+            // can link against this header without complaint and misread
+            // every struct. Stopping here says which one to rebuild.
+            precondition(
+                ro_abi_version() == RO_ABI_VERSION,
+                "Rust core ABI \(ro_abi_version()), header expects \(RO_ABI_VERSION): run Scripts/build_rust.sh"
+            )
+            pointer = ro_sampler_new()
+        }
         deinit { if let pointer { ro_sampler_free(pointer) } }
     }
 
@@ -77,7 +86,6 @@ actor Sampler {
             wired: raw.memory_wired,
             compressed: raw.memory_compressed,
             cached: raw.memory_cached,
-            pressure: raw.memory_pressure,
             pressureLevel: raw.memory_pressure_level,
             swapUsed: raw.swap_used,
             swapTotal: raw.swap_total
@@ -112,24 +120,24 @@ actor Sampler {
         var raw = RoSnapshot()
         ro_sample(handle, &raw)
         var process = RoProcess()
-        _ = ro_top_processes(handle, &process, 1, ProcessSort.cpu.rawValue)
+        _ = ro_top_processes(handle, &process, 1, ProcessSort.cpu.rawValue, nil)
     }
 
     /// Walking every process is the expensive read here, so it is deliberately
     /// a separate call the UI makes less often.
-    func processes(limit: Int, sort: ProcessSort) -> [ProcessSample] {
-        guard let handle = sampler.pointer else { return [] }
+    ///
+    /// The heaviest energy user comes from the same reading rather than from
+    /// the list: sorted by CPU or memory, it is often not among the rows.
+    func processes(
+        limit: Int,
+        sort: ProcessSort
+    ) -> (list: [ProcessSample], topEnergy: ProcessSample?) {
+        guard let handle = sampler.pointer else { return ([], nil) }
         var buffer = [RoProcess](repeating: RoProcess(), count: limit)
-        let count = ro_top_processes(handle, &buffer, UInt32(limit), sort.rawValue)
-        return buffer.prefix(Int(count)).map {
-            ProcessSample(
-                pid: $0.pid,
-                name: text(of: $0.name),
-                cpu: $0.cpu,
-                memory: $0.memory,
-                energyImpact: $0.energy_impact
-            )
-        }
+        var leader = RoProcess()
+        let count = ro_top_processes(handle, &buffer, UInt32(limit), sort.rawValue, &leader)
+        guard count > 0 else { return ([], nil) }
+        return (buffer.prefix(Int(count)).map(ProcessSample.init), ProcessSample(leader))
     }
 
     private func volumes() -> [VolumeSample] {
@@ -200,6 +208,18 @@ actor Sampler {
 
         cachedThermals = sample
         return sample
+    }
+}
+
+private extension ProcessSample {
+    init(_ raw: RoProcess) {
+        self.init(
+            pid: raw.pid,
+            name: text(of: raw.name),
+            cpu: raw.cpu,
+            memory: raw.memory,
+            energyImpact: raw.energy_impact
+        )
     }
 }
 

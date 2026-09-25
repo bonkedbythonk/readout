@@ -9,6 +9,9 @@
 
 #include <stdint.h>
 
+// Must match what ro_abi_version() returns: a stale core/target library
+// linked against a newer header would otherwise misread every struct.
+#define RO_ABI_VERSION 3
 #define RO_MAX_CORES 64
 
 typedef struct RoSampler RoSampler;
@@ -44,7 +47,6 @@ typedef struct {
     uint64_t memory_compressed;
     uint64_t memory_cached;
     uint64_t memory_free;
-    double memory_pressure;           // (wired + compressed) / total
     uint32_t memory_pressure_level;   // 0 normal, 1 warning, 2 critical
     uint64_t swap_total;
     uint64_t swap_used;
@@ -67,7 +69,7 @@ typedef struct {
     int32_t pid;
     char name[64];
     double cpu;        // share of one core; 2.0 means two cores fully busy
-    uint64_t memory;   // resident bytes
+    uint64_t memory;   // physical footprint, compressed pages included
     // Relative energy impact: CPU time weighted with idle wake-ups, the same
     // idea as Activity Monitor's Energy column. Deliberately not watts --
     // the kernel's per-process energy counter does not measure CPU power.
@@ -92,8 +94,10 @@ void ro_sample(RoSampler *sampler, RoSnapshot *out);
 // Fills up to `capacity` entries; returns how many were written.
 uint32_t ro_volumes(RoVolume *out, uint32_t capacity);
 
-// Walks every process, so poll this less often than ro_sample.
+// Walks every process, so poll this less often than ro_sample. When
+// `top_energy` is not null it receives the heaviest energy user of the same
+// reading, whatever `sort` is, provided the return value is non-zero.
 uint32_t ro_top_processes(RoSampler *sampler, RoProcess *out, uint32_t capacity,
-                          uint32_t sort);
+                          uint32_t sort, RoProcess *top_energy);
 
 #endif

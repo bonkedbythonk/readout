@@ -14,7 +14,6 @@ struct BatteryReader {
         let cycleCount: Int
         /// Current full-charge capacity against the design capacity.
         let health: Double
-        let temperature: Double       // °C
         let watts: Double             // positive charging, negative discharging
     }
 
@@ -56,8 +55,6 @@ struct BatteryReader {
             minutesRemaining: minutes,
             cycleCount: Int(number("CycleCount") ?? 0),
             health: design > 0 ? (nominal / design).clamped(to: 0 ... 1) : 0,
-            // The registry reports hundredths of a degree.
-            temperature: (number("Temperature") ?? 0) / 100,
             watts: millivolts * milliamps / 1_000_000
         )
     }

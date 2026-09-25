@@ -200,8 +200,12 @@ struct PowerCard: View {
             if let topEnergy {
                 StatRow(label: "Most energy", value: topEnergy.name)
             }
-            if let battery, !battery.isCharging, battery.watts > 0 {
-                StatRow(label: "From battery", value: String(format: "%.1f W", battery.watts))
+            // Negative is the battery discharging, which can happen plugged in
+            // too, under a load the adapter cannot cover. The margin keeps a
+            // battery held at its charge limit, drifting either side of zero,
+            // from toggling the row and resizing the panel with it.
+            if let battery, battery.watts < -0.5 {
+                StatRow(label: "From battery", value: String(format: "%.1f W", -battery.watts))
             }
         }
     }
