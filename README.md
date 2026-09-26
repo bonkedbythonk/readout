@@ -32,7 +32,7 @@ Get the latest `.dmg` from
 [Releases](https://github.com/bonkedbythonk/readout/releases/latest), open it
 and drag Readout into Applications. It runs in the menu bar, with no Dock icon.
 
-Requires Apple silicon. Built and tested on macOS 26.
+Requires Apple silicon. Built and tested on macOS 27.
 
 Readout is not notarized, so macOS blocks the first launch with *"Apple could
 not verify Readout"*. Click **Done**, then **System Settings → Privacy &
