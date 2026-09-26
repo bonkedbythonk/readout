@@ -109,7 +109,9 @@ struct StackedBar: View {
             .clipShape(Capsule())
         }
         .frame(height: height)
-        .animation(.reading, value: total)
+        // The parts, not the total: the total is the machine's memory, which
+        // never changes, so keyed on it the bar never animated at all.
+        .animation(.reading, value: segments.map(\.value))
     }
 
     private func width(for value: Double, in available: CGFloat) -> CGFloat {

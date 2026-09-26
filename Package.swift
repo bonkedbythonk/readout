@@ -2,6 +2,8 @@
 import PackageDescription
 import Foundation
 
+// The release build of the core, for every configuration: the manifest is not
+// told which one it is building. Scripts/build_rust.sh builds only this one.
 let rustLibDir = "\(Context.packageDirectory)/core/target/aarch64-apple-darwin/release"
 
 let package = Package(

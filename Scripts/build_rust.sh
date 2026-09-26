@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 # Build the Rust metrics core as a static lib for each requested arch.
+#
+# The core is always built for release, whatever the argument says:
+# Package.swift links the release library for every configuration, so a debug
+# core would be built and never linked, and a debug app would quietly link
+# whatever stale release copy was lying around. The argument names the Swift
+# configuration whose binary has to relink against it.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -16,8 +22,8 @@ for ARCH in "${ARCH_LIST[@]}"; do
     echo "ERROR: rust target $RUST_TARGET not installed. Run: rustup target add $RUST_TARGET" >&2
     exit 1
   fi
-  echo "==> cargo build ($RUST_TARGET, $CONF)"
-  ( cd "$ROOT/core" && cargo build --target "$RUST_TARGET" $([[ "$CONF" == release ]] && echo --release) )
+  echo "==> cargo build ($RUST_TARGET, release)"
+  ( cd "$ROOT/core" && cargo build --target "$RUST_TARGET" --release )
 
   # SwiftPM's older build system has no idea the static library exists, so it
   # will happily reuse a binary linked against an older copy. Drop the
@@ -25,7 +31,7 @@ for ARCH in "${ARCH_LIST[@]}"; do
   # The newer build system relinks on its own; this costs it nothing. Ask
   # SwiftPM where the binary is: the two build systems put it in different
   # places, and a hardcoded path silently deletes nothing.
-  LIB="$ROOT/core/target/$RUST_TARGET/$CONF/libreadout_core.a"
+  LIB="$ROOT/core/target/$RUST_TARGET/release/libreadout_core.a"
   STAMP="$ROOT/.build/rust-$RUST_TARGET-$CONF.stamp"
   mkdir -p "$(dirname "$STAMP")"
   NEW_SUM=$(shasum -a 256 "$LIB" | cut -d' ' -f1)

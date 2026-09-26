@@ -20,7 +20,8 @@ enum Benchmark {
                          elapsed / Double(iterations) / 1e6))
         }
 
-        let hid = HIDSensors()
+        let hid = HIDSensors(keeping: ThermalSensor.isUsed)
+        let allHID = HIDSensors()
         let smc = SMC()
         let gpu = GPUReader()
         let battery = BatteryReader()
@@ -28,6 +29,7 @@ enum Benchmark {
         print("responsive scrolling: \(ResponsiveScrolling.verify())")
         print("per call:")
         time("hid sensors", 20) { _ = hid?.readAll() }
+        time("hid (unfiltered)", 20) { _ = allHID?.readAll() }
         time("smc fans", 20) { _ = smc?.fans() }
         time("smc power", 20) { _ = smc?.read("PSTR") }
         time("gpu", 20) { _ = gpu.read() }
