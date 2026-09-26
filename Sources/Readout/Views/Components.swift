@@ -6,18 +6,14 @@ import SwiftUI
 /// cards, a single accent colour, and numbers large enough to read at a
 /// glance. Colour is reserved for values that have crossed a threshold.
 
-/// Standard easing for the bars, so every meter in the panel moves at the same
-/// rate.
-///
-/// Only geometry is animated. Animating the *numbers* as well — a
-/// `contentTransition(.numericText())` on each row — meant every visible label
-/// re-rendered its glyphs on every frame for the duration, and with a reading
-/// arriving each second the app sat at 60-80% CPU doing nothing but redrawing
-/// text. A stack sample was almost entirely `CA::Transaction::commit` into
-/// glyph rasterisation. Rows now cut straight to the new value.
-extension Animation {
-    static let reading = Animation.smooth(duration: 0.45)
-}
+// Nothing that shows a reading animates to it. Numbers once eased with a
+// `contentTransition(.numericText())` on each row, and every visible label
+// re-rendered its glyphs on every frame for the duration: with a reading each
+// second the app sat at 60-80% CPU redrawing text. The bars eased afterwards,
+// for 0.45 s of every second at the display's refresh rate, and that was still
+// most of the open panel's cost: measured over 30 s with the panel open, 4.6%
+// of a core with the bars animating and 0.9% with them cutting straight to the
+// new value, as the numbers already did.
 
 /// A rounded module, the way Control Center groups related controls.
 struct Card<Content: View>: View {
@@ -77,7 +73,6 @@ struct MeterBar: View {
             }
             .clipShape(Capsule())
             .frame(height: height)
-            .animation(.reading, value: fraction)
     }
 }
 
@@ -109,9 +104,6 @@ struct StackedBar: View {
             .clipShape(Capsule())
         }
         .frame(height: height)
-        // The parts, not the total: the total is the machine's memory, which
-        // never changes, so keyed on it the bar never animated at all.
-        .animation(.reading, value: segments.map(\.value))
     }
 
     private func width(for value: Double, in available: CGFloat) -> CGFloat {
