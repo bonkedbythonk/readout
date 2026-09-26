@@ -21,7 +21,7 @@ jobs:
       # Full history, for the tags: a build that is not a tag push takes its
       # version from the newest tag, and a shallow clone has none, so a dry run
       # would stamp 0.0.0 and report every release as an update.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 

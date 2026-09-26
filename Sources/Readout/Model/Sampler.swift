@@ -28,7 +28,7 @@ actor Sampler {
     }
 
     private let sampler = Handle()
-    private let hid = HIDSensors()
+    private let hid = HIDSensors(keeping: ThermalSensor.isUsed)
     private let smc = SMC()
     private let gpu = GPUReader()
     private let batteryReader = BatteryReader()
@@ -38,12 +38,21 @@ actor Sampler {
     /// a sample put together, and neither a die temperature nor a battery
     /// percentage changes meaningfully within a second.
     private var cachedThermals = ThermalSample()
-    private var thermalsReadAt: Date?
+    private var thermalsReadAt: ContinuousClock.Instant?
     private var cachedBattery: BatterySample?
-    private var batteryReadAt: Date?
+    private var batteryReadAt: ContinuousClock.Instant?
 
-    private let thermalInterval: TimeInterval = 3
-    private let batteryInterval: TimeInterval = 5
+    /// Rates differenced over a few milliseconds are noise, and a reading
+    /// that comes this soon after the last repeats it instead. The model
+    /// already spaces its readings; this holds for a reading cancelled in
+    /// flight, which the model never saw land.
+    private var lastReading: (at: ContinuousClock.Instant, sample: SystemSample)?
+    private let minimumInterval = Duration.milliseconds(250)
+
+    // Measured on a clock that only moves forward: against the wall clock, a
+    // clock set back an hour froze both readings for an hour.
+    private let thermalInterval = Duration.seconds(3)
+    private let batteryInterval = Duration.seconds(5)
 
     func host() -> HostSample {
         var info = RoHostInfo()
@@ -65,6 +74,9 @@ actor Sampler {
 
     func sample() -> SystemSample {
         guard let handle = sampler.pointer else { return SystemSample() }
+        if let lastReading, ContinuousClock.now - lastReading.at < minimumInterval {
+            return lastReading.sample
+        }
 
         var raw = RoSnapshot()
         ro_sample(handle, &raw)
@@ -107,6 +119,7 @@ actor Sampler {
                 inUseMemory: $0.inUseMemory
             )
         }
+        lastReading = (.now, sample)
         return sample
     }
 
@@ -152,10 +165,10 @@ actor Sampler {
     }
 
     private func battery() -> BatterySample? {
-        if let readAt = batteryReadAt, Date().timeIntervalSince(readAt) < batteryInterval {
+        if let readAt = batteryReadAt, ContinuousClock.now - readAt < batteryInterval {
             return cachedBattery
         }
-        batteryReadAt = Date()
+        batteryReadAt = .now
         cachedBattery = batteryReader.read().map {
             BatterySample(
                 charge: $0.charge,
@@ -171,22 +184,22 @@ actor Sampler {
     }
 
     private func thermals() -> ThermalSample {
-        if let readAt = thermalsReadAt, Date().timeIntervalSince(readAt) < thermalInterval {
+        if let readAt = thermalsReadAt, ContinuousClock.now - readAt < thermalInterval {
             return cachedThermals
         }
-        thermalsReadAt = Date()
+        thermalsReadAt = .now
 
         var sample = ThermalSample()
 
         if let readings = hid?.readAll(), !readings.isEmpty {
-            let die = readings.filter { $0.name.hasPrefix("PMU tdie") }.map(\.celsius)
+            let die = readings.filter { ThermalSensor.isDie($0.name) }.map(\.celsius)
             if !die.isEmpty {
                 sample.socPeak = die.max()
                 sample.socAverage = die.reduce(0, +) / Double(die.count)
             }
-            let drive = readings.filter { $0.name.contains("NAND") }.map(\.celsius)
+            let drive = readings.filter { ThermalSensor.isDrive($0.name) }.map(\.celsius)
             if !drive.isEmpty { sample.driveTemperature = drive.max() }
-            let cells = readings.filter { $0.name.contains("gas gauge") }.map(\.celsius)
+            let cells = readings.filter { ThermalSensor.isBattery($0.name) }.map(\.celsius)
             if !cells.isEmpty { sample.batteryTemperature = cells.reduce(0, +) / Double(cells.count) }
         }
 
@@ -206,6 +219,18 @@ actor Sampler {
 
         cachedThermals = sample
         return sample
+    }
+}
+
+/// The HID thermal sensors a sample uses, by product name. Only these are
+/// read at all: the rest cost as much each and nothing shows them.
+enum ThermalSensor {
+    static func isDie(_ name: String) -> Bool { name.hasPrefix("PMU tdie") }
+    static func isDrive(_ name: String) -> Bool { name.contains("NAND") }
+    static func isBattery(_ name: String) -> Bool { name.contains("gas gauge") }
+
+    static func isUsed(_ name: String) -> Bool {
+        isDie(name) || isDrive(name) || isBattery(name)
     }
 }
 

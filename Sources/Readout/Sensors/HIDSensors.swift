@@ -39,7 +39,10 @@ final class HIDSensors {
     private var client: AnyObject?
     private var services: [(name: String, service: AnyObject)] = []
 
-    init?() {
+    /// - Parameter keeping: which sensors, by product name, to read. Every
+    ///   service read is an IPC round trip, and on this Mac over a third of
+    ///   them are calibration and ambient-light channels nothing displays.
+    init?(keeping: (String) -> Bool = { _ in true }) {
         guard let handle = dlopen("/System/Library/Frameworks/IOKit.framework/IOKit", RTLD_LAZY) else {
             return nil
         }
@@ -61,10 +64,10 @@ final class HIDSensors {
         copyProperty = property
         copyEvent = event
         eventFloatValue = floatValue
-        connect()
+        connect(keeping: keeping)
     }
 
-    private func connect() {
+    private func connect(keeping: (String) -> Bool) {
         guard let client = createClient(kCFAllocatorDefault)?.takeRetainedValue() else { return }
         setMatching(client, [
             "PrimaryUsagePage": Self.applePage,
@@ -83,6 +86,7 @@ final class HIDSensors {
         services = found.compactMap { service in
             guard let name = copyProperty(service, "Product" as CFString)?
                 .takeRetainedValue() as? String,
+                keeping(name),
                 seen.insert(name).inserted
             else { return nil }
             return (name: name, service: service)

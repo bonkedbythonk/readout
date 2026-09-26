@@ -3,8 +3,9 @@
 use crate::sys::read_c_array;
 use std::collections::HashMap;
 use std::mem;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
+#[derive(Clone)]
 pub struct Process {
     pub pid: i32,
     pub name: String,
@@ -46,6 +47,13 @@ struct Counters {
 const ENERGY_CPU_WEIGHT: f64 = 100.0;
 const ENERGY_WAKEUP_WEIGHT: f64 = 0.4;
 
+/// Shortest interval worth differencing counters over. Two walks a few
+/// milliseconds apart — a sort change right after a periodic walk, or the
+/// panel handing over to the details window — divide a handful of wakeups by
+/// almost no time and report energy scores in the thousands. A walk that
+/// comes this soon after the last one repeats its result instead.
+const MIN_INTERVAL: Duration = Duration::from_millis(250);
+
 pub struct ProcSampler {
     previous: HashMap<i32, Counters>,
     /// The app each process's work belongs to, resolved once per pid.
@@ -56,6 +64,8 @@ pub struct ProcSampler {
     /// cost. `None` records "looked, belongs to no bundle".
     bundles: HashMap<i32, Option<(String, String)>>,
     last_sampled: Option<Instant>,
+    /// The previous walk's result, repeated for a walk inside `MIN_INTERVAL`.
+    last: Vec<Process>,
     nanos_per_tick: f64,
 }
 
@@ -72,13 +82,19 @@ impl ProcSampler {
             responsible: HashMap::new(),
             bundles: HashMap::new(),
             last_sampled: None,
+            last: Vec::new(),
             nanos_per_tick: crate::mach::nanos_per_tick(),
         }
     }
 
     pub fn sample(&mut self) -> Vec<Process> {
-        let pids = all_pids();
         let now = Instant::now();
+        if let Some(at) = self.last_sampled {
+            if now.duration_since(at) < MIN_INTERVAL {
+                return self.last.clone();
+            }
+        }
+        let pids = all_pids();
         let elapsed_nanos = self
             .last_sampled
             .map(|at| now.duration_since(at).as_secs_f64() * 1e9)
@@ -158,6 +174,7 @@ impl ProcSampler {
 
         self.previous = current;
         self.last_sampled = Some(now);
+        self.last.clone_from(&out);
         out
     }
 
@@ -370,8 +387,36 @@ fn task_all_info(pid: i32) -> Option<libc::proc_taskallinfo> {
     Some(unsafe { info.assume_init() })
 }
 
-/// Cheap process count: a null buffer makes the kernel report the count only.
+/// How many processes are running.
+///
+/// Asking with a null buffer is cheaper, but what the kernel reports then is
+/// its padded estimate of the table's size, about twenty more than `ps`
+/// counts. The walk costs a few hundredths of a millisecond.
 pub fn count() -> u32 {
-    let count = unsafe { libc::proc_listallpids(std::ptr::null_mut(), 0) };
-    count.max(0) as u32
+    all_pids().len() as u32
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_walk_right_after_another_repeats_it() {
+        let mut sampler = ProcSampler::new();
+        sampler.sample();
+        let first = sampler.sample();
+        let second = sampler.sample();
+        assert_eq!(first.len(), second.len());
+        for (a, b) in first.iter().zip(second.iter()) {
+            assert_eq!((a.pid, a.cpu, a.energy_impact), (b.pid, b.cpu, b.energy_impact));
+        }
+    }
+
+    #[test]
+    fn counts_the_pids_the_kernel_writes() {
+        let count = count() as usize;
+        let walked = all_pids().len();
+        // Processes may come and go between the two calls.
+        assert!(count.abs_diff(walked) < 16, "{count} vs {walked}");
+    }
 }
