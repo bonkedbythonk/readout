@@ -5,7 +5,11 @@ import IOKit
 ///
 /// The numbers live in a dictionary the driver publishes; if a future driver
 /// stops publishing them, this reports nothing rather than guessing.
-struct GPUReader {
+///
+/// The entry is found once and kept, and only the statistics are read from it
+/// each time. Copying the entry's whole property table, as this used to, drags
+/// about 110 KB of IOReport legend across on every read to use a few numbers.
+final class GPUReader {
     struct Reading {
         let name: String
         let coreCount: Int
@@ -13,41 +17,64 @@ struct GPUReader {
         let inUseMemory: UInt64
     }
 
+    private var entry: io_registry_entry_t = 0
+    private var name = "GPU"
+    private var coreCount = 0
+
+    deinit {
+        if entry != 0 { IOObjectRelease(entry) }
+    }
+
     func read() -> Reading? {
+        if entry == 0, !connect() { return nil }
+        guard let statistics = self.statistics(of: entry) else {
+            // The entry went away or stopped publishing; look again next time.
+            IOObjectRelease(entry)
+            entry = 0
+            return nil
+        }
+        return reading(from: statistics)
+    }
+
+    private func connect() -> Bool {
         let matching = IOServiceMatching("IOAccelerator")
         var iterator: io_iterator_t = 0
         guard IOServiceGetMatchingServices(kIOMainPortDefault, matching, &iterator) == kIOReturnSuccess
-        else { return nil }
+        else { return false }
         defer { IOObjectRelease(iterator) }
 
-        while case let entry = IOIteratorNext(iterator), entry != 0 {
-            defer { IOObjectRelease(entry) }
-
-            guard let properties = copyProperties(of: entry) else { continue }
-            guard let statistics = properties["PerformanceStatistics"] as? [String: Any] else {
+        while case let candidate = IOIteratorNext(iterator), candidate != 0 {
+            guard let statistics = statistics(of: candidate), reading(from: statistics) != nil else {
+                IOObjectRelease(candidate)
                 continue
             }
-
-            let utilisation = (statistics["Device Utilization %"] as? NSNumber)?.doubleValue
-                ?? (statistics["Renderer Utilization %"] as? NSNumber)?.doubleValue
-            guard let utilisation else { continue }
-
-            return Reading(
-                name: properties["model"] as? String ?? "GPU",
-                coreCount: (properties["gpu-core-count"] as? NSNumber)?.intValue ?? 0,
-                utilisation: (utilisation / 100).clamped(to: 0 ... 1),
-                inUseMemory: (statistics["In use system memory"] as? NSNumber)?.uint64Value ?? 0
-            )
+            entry = candidate
+            name = property("model", of: candidate) as? String ?? "GPU"
+            coreCount = (property("gpu-core-count", of: candidate) as? NSNumber)?.intValue ?? 0
+            return true
         }
-        return nil
+        return false
     }
 
-    private func copyProperties(of entry: io_registry_entry_t) -> [String: Any]? {
-        var unmanaged: Unmanaged<CFMutableDictionary>?
-        guard IORegistryEntryCreateCFProperties(entry, &unmanaged, kCFAllocatorDefault, 0)
-            == kIOReturnSuccess,
-            let properties = unmanaged?.takeRetainedValue() as? [String: Any]
-        else { return nil }
-        return properties
+    private func reading(from statistics: [String: Any]) -> Reading? {
+        let utilisation = (statistics["Device Utilization %"] as? NSNumber)?.doubleValue
+            ?? (statistics["Renderer Utilization %"] as? NSNumber)?.doubleValue
+        guard let utilisation else { return nil }
+
+        return Reading(
+            name: name,
+            coreCount: coreCount,
+            utilisation: (utilisation / 100).clamped(to: 0 ... 1),
+            inUseMemory: (statistics["In use system memory"] as? NSNumber)?.uint64Value ?? 0
+        )
+    }
+
+    private func statistics(of entry: io_registry_entry_t) -> [String: Any]? {
+        property("PerformanceStatistics", of: entry) as? [String: Any]
+    }
+
+    private func property(_ key: String, of entry: io_registry_entry_t) -> Any? {
+        IORegistryEntryCreateCFProperty(entry, key as CFString, kCFAllocatorDefault, 0)?
+            .takeRetainedValue()
     }
 }

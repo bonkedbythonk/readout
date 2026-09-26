@@ -22,7 +22,7 @@ jobs:
     runs-on: macos-26
     steps:
       # Full history, for the tags package_app.sh takes its version from.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 

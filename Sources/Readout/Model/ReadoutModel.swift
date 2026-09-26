@@ -78,7 +78,6 @@ final class ReadoutModel {
         guard isVisible else { return }
 
         let interval = isPanelOpen ? openInterval : detailInterval
-        processRefreshes = 0
         timer = Task { [weak self] in
             await self?.catchUp(interval: interval)
             while !Task.isCancelled {
@@ -94,10 +93,23 @@ final class ReadoutModel {
     /// throwaway reading resets the counters and the real one follows shortly.
     /// The graphs start over for the same reason: an old tail spliced onto new
     /// samples draws the gap as if it were a second.
+    ///
+    /// A recent reading is the opposite case. Clicking Details from the panel
+    /// opens one surface and closes the other within milliseconds, restarting
+    /// the timer twice, and sampling straight away each time differenced the
+    /// counters over no time at all: zeros in the graphs and energy scores in
+    /// the thousands. So the new timer waits out what is left of the interval.
     private func catchUp(interval: Duration) async {
-        if let lastSampled, ContinuousClock.now - lastSampled < interval * 2 {
-            return
+        if let lastSampled {
+            let since = ContinuousClock.now - lastSampled
+            if since < interval * 2 {
+                if since < interval {
+                    try? await Task.sleep(for: interval - since)
+                }
+                return
+            }
         }
+        processRefreshes = 0
         cpuHistory.removeAll()
         memoryHistory.removeAll()
         networkHistory.removeAll()
@@ -107,6 +119,9 @@ final class ReadoutModel {
 
     private func refresh() async {
         let latest = await sampler.sample()
+        // A timer cancelled mid-reading must not land its reading after the
+        // one its replacement takes.
+        guard !Task.isCancelled else { return }
         sample = latest
         lastSampled = .now
 
