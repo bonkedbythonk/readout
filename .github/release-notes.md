@@ -4,7 +4,7 @@
 2. Drag **Readout** into **Applications**.
 3. Open Readout. It lives in the menu bar — look for the gauge — and has no Dock icon.
 
-Requires a Mac with Apple silicon. Built and tested on macOS 26.
+Requires a Mac with Apple silicon. Built and tested on macOS 27.
 
 ### "Apple could not verify Readout"
 
