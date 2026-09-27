@@ -66,7 +66,7 @@ struct BatterySample: Sendable, Equatable {
     var isPluggedIn: Bool
     var minutesRemaining: Int?
     var cycleCount: Int
-    var health: Double
+    var health: Double?
     var watts: Double
 }
 
