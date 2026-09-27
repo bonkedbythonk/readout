@@ -231,7 +231,9 @@ struct BatteryCard: View {
                 )
             }
             if detailed {
-                StatRow(label: "Maximum capacity", value: Format.percent(battery.health))
+                if let health = battery.health {
+                    StatRow(label: "Maximum capacity", value: Format.percent(health))
+                }
                 StatRow(label: "Cycle count", value: "\(battery.cycleCount)")
                 StatRow(label: "Power flow", value: String(format: "%.1f W", abs(battery.watts)))
             }
