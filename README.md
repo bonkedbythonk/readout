@@ -1,6 +1,6 @@
 # Readout
 
-A macOS menu bar system monitor. Rust reads the machine, Swift draws it.
+Menu bar system monitor for Apple silicon Macs: CPU, memory, network, disk, battery and processes.
 
 The menu bar carries only the app's mark. Readings live in the panel that drops
 out of it; anything you would go looking for deliberately — battery cycles,
