@@ -28,9 +28,18 @@ Scripts/               build, package, run, draw the icon
 
 ## Download
 
-Get the latest `.dmg` from
+Paste this into Terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/bonkedbythonk/readout/main/Scripts/install.sh | bash
+```
+
+Run the same line again to update. It installs Readout into Applications and
+opens it. It runs in the menu bar, with no Dock icon.
+
+Or get the latest `.dmg` from
 [Releases](https://github.com/bonkedbythonk/readout/releases/latest), open it
-and drag Readout into Applications. It runs in the menu bar, with no Dock icon.
+and drag Readout into Applications.
 
 Requires Apple silicon. Built and tested on macOS 27.
 
