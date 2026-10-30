@@ -1,6 +1,21 @@
-# Readout
+<div align="center">
+  <img src="docs/icon.png" alt="Readout" width="128">
+  <h1>Readout</h1>
+  <p>Menu bar system monitor for Apple silicon Macs: CPU, memory, network, disk, battery and processes.</p>
 
-Menu bar system monitor for Apple silicon Macs: CPU, memory, network, disk, battery and processes.
+  <p>
+    <img src="https://img.shields.io/github/v/release/bonkedbythonk/readout?style=flat-square&label=latest" alt="Latest release">
+    <img src="https://img.shields.io/badge/macOS-27-lightgrey?style=flat-square" alt="macOS 27">
+    <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License">
+  </p>
+
+  <table>
+    <tr>
+      <td><img src="docs/screenshots/panel.png" alt="The menu bar panel" width="300"></td>
+      <td><img src="docs/screenshots/details.png" alt="The details window" width="420"></td>
+    </tr>
+  </table>
+</div>
 
 Click the menu bar icon for the panel. The details window has the rest: battery cycles, per-core load, every volume.
 
